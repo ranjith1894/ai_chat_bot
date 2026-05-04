@@ -103,3 +103,32 @@ async def whatsapp_webhook(Body: str = Form(...)):
     twilio_response.message(result["reply"])
 
     return PlainTextResponse(str(twilio_response), media_type="application/xml")
+
+
+@app.post("/voice-chat")
+async def voice_chat(file: UploadFile = File(...)):
+    # Save uploaded audio temporarily
+    suffix = file.filename.split(".")[-1] if file.filename else "webm"
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=f".{suffix}") as temp_audio:
+        temp_audio.write(await file.read())
+        temp_audio_path = temp_audio.name
+
+    # 1. Transcribe audio
+    with open(temp_audio_path, "rb") as audio_file:
+        transcription = groq_client.audio.transcriptions.create(
+            file=audio_file,
+            model="whisper-large-v3-turbo",
+            response_format="json",
+            language="en"
+        )
+
+    user_text = transcription.text
+
+    # 2. Send transcribed text to existing chat logic
+    result = chat(ChatRequest(message=user_text))
+
+    return {
+        "transcribed_text": user_text,
+        "reply": result["reply"]
+    }
