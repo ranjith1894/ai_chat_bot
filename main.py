@@ -7,10 +7,20 @@ from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 from typing import Optional
 
+from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
+
 app = FastAPI(title="Ranjith Rephrase Bot")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # for testing
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 llm = ChatGroq(
     model="llama-3.1-8b-instant",
@@ -74,4 +84,3 @@ Rules:
     })
 
     return {"reply": result.content.strip()}
-    
