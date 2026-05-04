@@ -109,28 +109,36 @@ async def whatsapp_webhook(Body: str = Form(...)):
 
 @app.post("/voice-chat")
 async def voice_chat(file: UploadFile = File(...)):
-    # Save uploaded audio temporarily
-    suffix = file.filename.split(".")[-1] if file.filename else "webm"
-
-    with tempfile.NamedTemporaryFile(delete=False, suffix=f".{suffix}") as temp_audio:
-        temp_audio.write(await file.read())
-        temp_audio_path = temp_audio.name
-
-    # 1. Transcribe audio
+    # 1. Transcribe
     with open(temp_audio_path, "rb") as audio_file:
         transcription = groq_client.audio.transcriptions.create(
             file=audio_file,
-            model="whisper-large-v3-turbo",
-            response_format="json",
-            language="en"
+            model="whisper-large-v3-turbo"
         )
 
     user_text = transcription.text
 
-    # 2. Send transcribed text to existing chat logic
-    result = chat(ChatRequest(message=user_text))
+    # 2. NEW: Answer like assistant (NOT rephrase)
+    prompt = f"""
+You are a helpful AI assistant.
+
+Answer the user's question clearly and naturally.
+
+Keep it short unless explanation is needed.
+
+User question:
+{user_text}
+"""
+
+    response = groq_client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.5
+    )
+
+    reply = response.choices[0].message.content
 
     return {
         "transcribed_text": user_text,
-        "reply": result["reply"]
+        "reply": reply
     }
