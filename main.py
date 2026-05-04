@@ -9,6 +9,12 @@ from typing import Optional
 
 from fastapi.middleware.cors import CORSMiddleware
 
+
+from fastapi import Form
+from fastapi.responses import PlainTextResponse
+from twilio.twiml.messaging_response import MessagingResponse
+
+
 load_dotenv()
 
 
@@ -84,3 +90,16 @@ Rules:
     })
 
     return {"reply": result.content.strip()}
+
+
+
+@app.post("/whatsapp")
+async def whatsapp_webhook(Body: str = Form(...)):
+    prompt_req = ChatRequest(message=Body)
+
+    result = chat(prompt_req)
+
+    twilio_response = MessagingResponse()
+    twilio_response.message(result["reply"])
+
+    return PlainTextResponse(str(twilio_response), media_type="application/xml")

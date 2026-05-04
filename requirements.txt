@@ -3,3 +3,5 @@ uvicorn[standard]
 python-dotenv
 langchain
 langchain-groq
+twilio
+python-multipart
