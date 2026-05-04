@@ -109,36 +109,49 @@ async def whatsapp_webhook(Body: str = Form(...)):
 
 @app.post("/voice-chat")
 async def voice_chat(file: UploadFile = File(...)):
-    # 1. Transcribe
-    with open(temp_audio_path, "rb") as audio_file:
-        transcription = groq_client.audio.transcriptions.create(
-            file=audio_file,
-            model="whisper-large-v3-turbo"
+    try:
+        print("API HIT ✅")
+
+        # read file
+        content = await file.read()
+
+        if not content:
+            return {"error": "Empty file"}
+
+        # save temp file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".webm") as temp:
+            temp.write(content)
+            temp_path = temp.name
+
+        print("File saved:", temp_path)
+
+        # TRANSCRIBE
+        with open(temp_path, "rb") as audio:
+            transcription = groq_client.audio.transcriptions.create(
+                file=audio,
+                model="whisper-large-v3-turbo"
+            )
+
+        user_text = transcription.text
+        print("Transcribed:", user_text)
+
+        # ANSWER (not rephrase)
+        response = groq_client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant. Keep answers short."},
+                {"role": "user", "content": user_text}
+            ],
+            temperature=0.5
         )
 
-    user_text = transcription.text
+        reply = response.choices[0].message.content
 
-    # 2. NEW: Answer like assistant (NOT rephrase)
-    prompt = f"""
-You are a helpful AI assistant.
+        return {
+            "transcribed_text": user_text,
+            "reply": reply
+        }
 
-Answer the user's question clearly and naturally.
-
-Keep it short unless explanation is needed.
-
-User question:
-{user_text}
-"""
-
-    response = groq_client.chat.completions.create(
-        model="llama-3.1-8b-instant",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.5
-    )
-
-    reply = response.choices[0].message.content
-
-    return {
-        "transcribed_text": user_text,
-        "reply": reply
-    }
+    except Exception as e:
+        print("ERROR:", str(e))
+        return {"error": str(e)}
