@@ -1,5 +1,7 @@
 import os
-from fastapi import FastAPI
+
+import tempfile
+from fastapi import FastAPI, UploadFile, File,  Form
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
@@ -9,8 +11,8 @@ from typing import Optional
 
 from fastapi.middleware.cors import CORSMiddleware
 
+from groq import Groq
 
-from fastapi import Form
 from fastapi.responses import PlainTextResponse
 from twilio.twiml.messaging_response import MessagingResponse
 
