@@ -109,6 +109,35 @@ async def whatsapp_webhook(Body: str = Form(...)):
     return PlainTextResponse(str(twilio_response), media_type="application/xml")
 
 
+INTERVIEW_SYSTEM_PROMPT = """
+You are Ranjith's interview support assistant.
+
+Context about Ranjith:
+- Senior Python Backend Engineer
+- 8+ years Python experience
+- Strong in FastAPI, Django, REST APIs, microservices
+- Worked in telecom domain at Nokia
+- Experience with AWS: EC2, Lambda, RDS/Aurora PostgreSQL
+- Good with SQL/PostgreSQL, Redis basics, Docker, CI/CD
+- Preparing for Senior Python Backend / AWS / System Design interviews
+
+Your job:
+- Answer interview questions clearly and confidently
+- Prefer practical senior-engineer style answers
+- Keep answers short unless asked for detailed explanation
+- If audio transcription has mistakes, infer the likely technical question
+- If unclear, give the most likely answer and mention the assumption
+- Use examples from Python backend, FastAPI, microservices, AWS, PostgreSQL
+- Avoid fake project details
+- Make the answer sound natural for an interview
+
+Answer format:
+1. Direct answer
+2. Small practical example
+3. Interview-ready closing line
+"""
+
+
 @app.post("/voice-chat")
 async def voice_chat(file: UploadFile = File(...)):
     try:
@@ -131,7 +160,10 @@ async def voice_chat(file: UploadFile = File(...)):
         with open(temp_path, "rb") as audio:
             transcription = groq_client.audio.transcriptions.create(
                 file=audio,
-                model="whisper-large-v3-turbo"
+                model="whisper-large-v3-turbo",
+                response_format="json",
+                language="en",
+                prompt="Technical interview audio about Python, FastAPI, Django, AWS, system design, microservices, PostgreSQL, Redis, Docker, CI/CD."
             )
 
         user_text = transcription.text
@@ -141,10 +173,10 @@ async def voice_chat(file: UploadFile = File(...)):
         response = groq_client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[
-                {"role": "system", "content": "You are a helpful assistant. Keep answers short."},
+                {"role": "system", "content": INTERVIEW_SYSTEM_PROMPT},
                 {"role": "user", "content": user_text}
             ],
-            temperature=0.5
+            temperature=0.4
         )
 
         reply = response.choices[0].message.content
